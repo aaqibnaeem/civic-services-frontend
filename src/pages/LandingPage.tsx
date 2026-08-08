@@ -275,7 +275,7 @@ export default function LandingPage() {
       </Band>
 
       {/* ---------------------------------------------------------- highlights */}
-      {summary.data && summary.data.highlights.length > 0 ? (
+      {summary.data?.highlights?.length ? (
         <Band className="py-14 sm:py-20" innerClassName="space-y-8">
           <SectionHeading
             eyebrow="What the data says"
@@ -283,7 +283,7 @@ export default function LandingPage() {
             description="The same analysis the staff dashboard runs, written so anyone can read it. Generated from the live data, not written by hand."
           />
           <ul className="grid gap-4 lg:grid-cols-3">
-            {summary.data.highlights.slice(0, 3).map((insight) => {
+            {summary.data.highlights!.slice(0, 3).map((insight) => {
               const meta = INSIGHT_SEVERITY_META[insight.severity]
               return (
                 <li

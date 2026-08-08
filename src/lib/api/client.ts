@@ -356,6 +356,24 @@ export async function request<T>(
     throw error
   }
 
+  // Every endpoint in this app returns JSON. A 2xx that isn't JSON means the
+  // request never reached the API — most often because VITE_API_URL is unset in
+  // production, so `/api/v1/...` resolves against the SPA's own origin and the
+  // catch-all rewrite in vercel.json serves index.html with a 200. Returning that
+  // HTML as if it were the payload is how a missing env var turns into
+  // "Cannot read properties of undefined" three components deep.
+  if (!contentType.includes('application/json')) {
+    throw new ApiError(response.status, {
+      code: 'invalid_response',
+      message:
+        `Expected JSON from the API but received "${contentType || 'no content-type'}". ` +
+        `The request to ${response.url} did not reach the backend — check that ` +
+        `VITE_API_URL points at the deployed API.`,
+      details: [],
+      request_id: '',
+    }, { raw: payload })
+  }
+
   return payload as T
 }
 
