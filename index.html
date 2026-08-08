@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="Report a civic issue in plain language. AI categorises it, sets a priority and routes it to the right department — then you track it with a reference code."
+    />
+    <meta name="theme-color" content="#1f3a68" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f1622" media="(prefers-color-scheme: dark)" />
+    <title>AI Smart Civic Services</title>
+    <script>
+      // Paint the persisted theme before React boots so there is no light flash.
+      (function () {
+        try {
+          var raw = localStorage.getItem('civic.ui')
+          var theme = raw ? (JSON.parse(raw).state || {}).theme : 'system'
+          var dark =
+            theme === 'dark' ||
+            ((!theme || theme === 'system') &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches)
+          if (dark) document.documentElement.classList.add('dark')
+          document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
+        } catch (e) {}
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
