@@ -27,6 +27,7 @@ import { GlobalSearch } from '@/components/admin/GlobalSearch'
 import { useAiHealth } from '@/hooks/useAi'
 import { useLogout } from '@/hooks/useAuth'
 import { AI_SOURCE_META, ROLE_META } from '@/lib/domain'
+import { RoleBadge } from '@/components/admin/RoleBadge'
 import type { AISource, AiHealthResponse } from '@/lib/api/types'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
@@ -206,6 +207,9 @@ export default function AdminLayout() {
   const setDensity = useUiStore((s) => s.setDensity)
   const user = useAuthStore((s) => s.user)
   const logout = useLogout()
+  // Staff and admin share every screen but not every permission, so the shell is
+  // colour-coded by role rather than looking identical for both accounts.
+  const roleMeta = user?.role ? ROLE_META[user.role] : null
 
   const current = NAV.find((item) =>
     item.end ? location.pathname === item.to : location.pathname.startsWith(item.to),
@@ -231,16 +235,21 @@ export default function AdminLayout() {
         >
           <Link
             to="/"
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none"
+            className={cn(
+              'flex size-9 shrink-0 items-center justify-center rounded-lg focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none',
+              roleMeta?.accentClass ?? 'bg-sidebar-primary text-sidebar-primary-foreground',
+            )}
             aria-label="Civic Services home"
           >
             <Landmark className="size-4.5" aria-hidden strokeWidth={2.2} />
           </Link>
           {!collapsed && (
             <div className="flex min-w-0 flex-col leading-none">
-              <span className="truncate text-sm font-semibold">Civic Admin</span>
+              <span className="truncate text-sm font-semibold">
+                {roleMeta?.console ?? 'Civic Console'}
+              </span>
               <span className="truncate text-[0.6875rem] text-muted-foreground">
-                Triage &amp; analytics
+                {user?.role === 'staff' ? 'Triage & analytics' : 'Full access'}
               </span>
             </div>
           )}
@@ -284,10 +293,15 @@ export default function AdminLayout() {
             <SheetContent side="left" className="w-64 bg-sidebar p-0">
               <SheetTitle className="sr-only">Admin navigation</SheetTitle>
               <div className="flex h-16 items-center gap-2.5 px-4">
-                <span className="flex size-9 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                <span
+                  className={cn(
+                    'flex size-9 items-center justify-center rounded-lg',
+                    roleMeta?.accentClass ?? 'bg-sidebar-primary text-sidebar-primary-foreground',
+                  )}
+                >
                   <Landmark className="size-4.5" aria-hidden />
                 </span>
-                <span className="text-sm font-semibold">Civic Admin</span>
+                <span className="text-sm font-semibold">{roleMeta?.console ?? 'Civic Console'}</span>
               </div>
               <Separator />
               <div className="py-3">
@@ -299,6 +313,7 @@ export default function AdminLayout() {
           <h2 className="hidden truncate text-sm font-semibold md:block">{pageTitle}</h2>
 
           <div className="ml-auto flex items-center gap-2">
+            {user?.role ? <RoleBadge role={user.role} className="hidden sm:inline-flex" /> : null}
             <GlobalSearch />
             <AiHealthIndicator />
 

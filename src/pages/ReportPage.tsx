@@ -53,13 +53,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useAnalyzePreview, useCreateComplaint } from '@/hooks'
 import type { Category, Complaint, ComplaintCreate } from '@/lib/api/types'
@@ -503,26 +496,29 @@ export default function ReportPage() {
                     <Field>
                       <FieldLabel htmlFor="area">Area</FieldLabel>
                       <FieldDescription>
-                        Used for the hotspot analysis that shows which parts of the city report the
-                        most problems.
+                        Your neighbourhood, town or district. Used for the hotspot analysis that shows
+                        which parts of the city report the most problems.
                       </FieldDescription>
-                      {/* Radix treats '' as "nothing selected", which keeps the
-                          select controlled for its whole lifetime. */}
-                      <Select
+                      {/* A free text field, not a fixed list: the seeded data happens to be
+                          from Karachi, but nothing in the system is Karachi-specific and a
+                          citizen elsewhere must still be able to file. The known areas are
+                          offered as autocomplete suggestions so the common cases stay
+                          one-tap and spellings stay consistent for the hotspot grouping. */}
+                      <Input
+                        id="area"
+                        list="known-areas"
+                        autoComplete="address-level3"
+                        placeholder="e.g. Gulshan-e-Iqbal (optional)"
+                        maxLength={120}
                         value={field.value ?? ''}
-                        onValueChange={(value) => field.onChange(value)}
-                      >
-                        <SelectTrigger id="area" className="h-10 w-full">
-                          <SelectValue placeholder="Choose an area (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {KARACHI_AREAS.map((area) => (
-                            <SelectItem key={area} value={area}>
-                              {area}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onChange={(event) => field.onChange(event.target.value)}
+                        onBlur={field.onBlur}
+                      />
+                      <datalist id="known-areas">
+                        {KARACHI_AREAS.map((area) => (
+                          <option key={area} value={area} />
+                        ))}
+                      </datalist>
                       {areaValue ? (
                         <button
                           type="button"

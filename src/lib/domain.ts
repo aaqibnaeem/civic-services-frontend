@@ -26,11 +26,13 @@ import {
   Info,
   Regex,
   ShieldAlert,
+  ShieldCheck,
   SignalHigh,
   SignalLow,
   SignalMedium,
   Trash2,
   TriangleAlert,
+  User,
   UserCheck,
   Waypoints,
   Wrench,
@@ -434,10 +436,53 @@ export const INSIGHT_SEVERITY_META: Record<
   },
 }
 
-export const ROLE_META: Record<Role, { label: string; description: string }> = {
-  citizen: { label: 'Citizen', description: 'Can submit and track complaints.' },
-  staff: { label: 'Staff', description: 'Can triage, assign and update complaints.' },
-  admin: { label: 'Administrator', description: 'Full access, including deletion.' },
+export interface RoleMeta {
+  label: string
+  /** Names the workspace in the shell, e.g. "Staff console". */
+  console: string
+  description: string
+  /** What this role may do, phrased for a tooltip. */
+  capabilities: string
+  icon: LucideIcon
+  badgeClass: string
+  /** Accent for the shell's brand mark, so the two roles are distinguishable at a glance. */
+  accentClass: string
+}
+
+/** Roles are visually distinct in the console so nobody has to guess which
+ *  account they are driving during a demo — or, worse, discover the difference
+ *  by getting a 403 halfway through an action. */
+export const ROLE_META: Record<Role, RoleMeta> = {
+  citizen: {
+    label: 'Citizen',
+    console: 'Citizen',
+    description: 'Can submit and track complaints.',
+    capabilities: 'Submit complaints and track them by reference code.',
+    icon: User,
+    badgeClass: 'border-muted-foreground/25 bg-muted text-muted-foreground',
+    accentClass: 'bg-muted text-muted-foreground',
+  },
+  staff: {
+    label: 'Staff',
+    console: 'Staff console',
+    description: 'Can triage, assign and update complaints.',
+    capabilities:
+      'Triage, assign, change status and read the full dashboard. Cannot delete complaints — that is reserved for administrators.',
+    icon: Wrench,
+    badgeClass: 'border-sky-500/30 bg-sky-500/12 text-sky-700 dark:bg-sky-500/18 dark:text-sky-300',
+    accentClass: 'bg-sky-600 text-white dark:bg-sky-500',
+  },
+  admin: {
+    label: 'Administrator',
+    console: 'Admin console',
+    description: 'Full access, including deletion.',
+    capabilities:
+      'Everything staff can do, plus deleting complaints. Deletion is soft, so analytics keep a stable historical denominator.',
+    icon: ShieldCheck,
+    badgeClass:
+      'border-amber-500/30 bg-amber-500/12 text-amber-700 dark:bg-amber-500/18 dark:text-amber-300',
+    accentClass: 'bg-amber-600 text-white dark:bg-amber-500',
+  },
 }
 
 /* ========================================================================== */
