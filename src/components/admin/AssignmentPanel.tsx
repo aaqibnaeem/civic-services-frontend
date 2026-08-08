@@ -28,19 +28,12 @@ import {
 
 import { useAutoAssignComplaint, useDepartmentStaff, useUpdateComplaint } from '@/hooks'
 import { sortByWorkload } from '@/hooks/useStaff'
+import { StaffPicker } from './StaffPicker'
 import { isApiError } from '@/lib/api/client'
-import type { ComplaintDetail, StaffMember } from '@/lib/api/types'
-import { cn } from '@/lib/utils'
+import type { ComplaintDetail } from '@/lib/api/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -51,9 +44,6 @@ export interface AssignmentPanelProps {
   className?: string
 }
 
-function staffLabel(member: StaffMember): string {
-  return member.full_name || member.email
-}
 
 function when(iso: string): { absolute: string; relative: string } {
   try {
@@ -65,13 +55,6 @@ function when(iso: string): { absolute: string; relative: string } {
   } catch {
     return { absolute: iso, relative: '' }
   }
-}
-
-/** "3 active" — the number that makes a reassignment an informed choice. */
-function workloadLabel(member: StaffMember): string | null {
-  const count = member.active_assignments
-  if (count === null || count === undefined) return null
-  return `${count} active`
 }
 
 export function AssignmentPanel({ complaint, className }: AssignmentPanelProps) {
@@ -257,48 +240,14 @@ export function AssignmentPanel({ complaint, className }: AssignmentPanelProps) 
           {staff.isPending && departmentId ? (
             <Skeleton className="h-9 w-full rounded-md" />
           ) : (
-            <Select
-              value={selected}
-              onValueChange={setSelected}
+            <StaffPicker
+              id="assignment-staff"
+              staff={options}
+              value={selected === NOBODY ? null : selected}
+              onChange={(id) => setSelected(id ?? NOBODY)}
               disabled={pickerDisabled}
-            >
-              <SelectTrigger id="assignment-staff" className="w-full">
-                <SelectValue placeholder="Choose a staff member" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NOBODY} disabled>
-                  Nobody assigned
-                </SelectItem>
-                {options.map((member) => {
-                  const unavailable = member.is_available === false
-                  const load = workloadLabel(member)
-                  return (
-                    <SelectItem key={member.id} value={member.id} disabled={unavailable}>
-                      <span className="flex w-full items-center gap-2">
-                        <span className="min-w-0 flex-1 truncate">{staffLabel(member)}</span>
-                        {load ? (
-                          <span
-                            className={cn(
-                              'tabular shrink-0 rounded-full border px-1.5 py-px text-[0.6875rem]',
-                              (member.active_assignments ?? 0) === 0
-                                ? 'border-success/30 bg-success/10 text-success'
-                                : 'text-muted-foreground',
-                            )}
-                          >
-                            {load}
-                          </span>
-                        ) : null}
-                        {unavailable ? (
-                          <span className="shrink-0 text-[0.6875rem] text-muted-foreground">
-                            unavailable
-                          </span>
-                        ) : null}
-                      </span>
-                    </SelectItem>
-                  )
-                })}
-              </SelectContent>
-            </Select>
+              allowUnassign={false}
+            />
           )}
 
           <p className="text-xs leading-relaxed text-muted-foreground">{pickerHint}</p>

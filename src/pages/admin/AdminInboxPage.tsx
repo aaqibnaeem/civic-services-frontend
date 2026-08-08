@@ -22,6 +22,7 @@ import {
   useDepartments,
   useIsMobile,
   useStaff,
+  useAutoAssignComplaint,
   useUpdateComplaint,
 } from '@/hooks'
 import type { Complaint, Status } from '@/lib/api/types'
@@ -44,6 +45,7 @@ import {
   ComplaintTableSkeleton,
 } from '@/components/admin/ComplaintTable'
 import { InboxToolbar } from '@/components/admin/InboxToolbar'
+import { RowAssignDialog } from '@/components/admin/RowAssignDialog'
 import {
   PAGE_SIZE_OPTIONS,
   hasActiveFilters,
@@ -80,7 +82,17 @@ export default function AdminInboxPage() {
   const staff = useStaff()
   const areasQuery = useAnalyticsAreas()
   const update = useUpdateComplaint()
+  const autoAssign = useAutoAssignComplaint()
   const [pendingId, setPendingId] = useState<string | null>(null)
+  // The row whose staff picker is open. Null closes the dialog.
+  const [assignTarget, setAssignTarget] = useState<Complaint | null>(null)
+
+  const onAssign = (complaint: Complaint) => setAssignTarget(complaint)
+
+  const onAutoAssign = (complaint: Complaint) => {
+    setPendingId(complaint.id)
+    autoAssign.mutate(complaint.id, { onSettled: () => setPendingId(null) })
+  }
 
   const areas = useMemo(
     () => (areasQuery.data?.areas ?? []).map((area) => area.area),
@@ -242,6 +254,8 @@ export default function AdminInboxPage() {
             <ComplaintCards
               complaints={items}
               onStatusChange={onStatusChange}
+              onAssign={onAssign}
+              onAutoAssign={onAutoAssign}
               pendingId={pendingId}
             />
           ) : (
@@ -251,6 +265,8 @@ export default function AdminInboxPage() {
               order={filters.order}
               onSort={setSort}
               onStatusChange={onStatusChange}
+              onAssign={onAssign}
+              onAutoAssign={onAutoAssign}
               pendingId={pendingId}
             />
           )}
@@ -300,6 +316,10 @@ export default function AdminInboxPage() {
           </nav>
         </div>
       )}
-    </div>
+    <RowAssignDialog
+        complaint={assignTarget}
+        onOpenChange={(open) => { if (!open) setAssignTarget(null) }}
+      />
+      </div>
   )
 }

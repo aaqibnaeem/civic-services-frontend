@@ -14,6 +14,7 @@ import {
   ChevronsUpDown,
   Ellipsis,
   LoaderCircle,
+  Sparkles,
   UserRound,
 } from 'lucide-react'
 
@@ -164,6 +165,10 @@ function SortHeader({
 export interface StatusQuickChangeProps {
   complaint: Complaint
   onChange: (status: Status) => void
+  /** Open the staff picker for this row. Omitted where assignment is unavailable. */
+  onAssign?: (complaint: Complaint) => void
+  /** Run the workload rule server-side for this row. */
+  onAutoAssign?: (complaint: Complaint) => void
   pending?: boolean
   align?: 'start' | 'end'
 }
@@ -171,6 +176,8 @@ export interface StatusQuickChangeProps {
 export function StatusQuickChange({
   complaint,
   onChange,
+  onAssign,
+  onAutoAssign,
   pending = false,
   align = 'end',
 }: StatusQuickChangeProps) {
@@ -232,6 +239,27 @@ export function StatusQuickChange({
             </DropdownMenuItem>
           )
         })}
+
+        {onAssign || onAutoAssign ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+              Ownership
+            </DropdownMenuLabel>
+            {onAssign ? (
+              <DropdownMenuItem onSelect={() => onAssign(complaint)} className="gap-2">
+                <UserRound className="size-3.5" aria-hidden />
+                {complaint.assignee ? 'Reassign…' : 'Assign to…'}
+              </DropdownMenuItem>
+            ) : null}
+            {onAutoAssign ? (
+              <DropdownMenuItem onSelect={() => onAutoAssign(complaint)} className="gap-2">
+                <Sparkles className="size-3.5" aria-hidden />
+                Auto-assign
+              </DropdownMenuItem>
+            ) : null}
+          </>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -247,6 +275,8 @@ export interface ComplaintTableProps {
   order: SortOrder | undefined
   onSort: (field: SortField) => void
   onStatusChange: (complaint: Complaint, status: Status) => void
+  onAssign?: (complaint: Complaint) => void
+  onAutoAssign?: (complaint: Complaint) => void
   pendingId?: string | null
   className?: string
 }
@@ -257,6 +287,8 @@ export function ComplaintTable({
   order,
   onSort,
   onStatusChange,
+  onAssign,
+  onAutoAssign,
   pendingId,
   className,
 }: ComplaintTableProps) {
@@ -394,6 +426,8 @@ export function ComplaintTable({
                   complaint={complaint}
                   pending={pendingId === complaint.id}
                   onChange={(status) => onStatusChange(complaint, status)}
+                  onAssign={onAssign}
+                  onAutoAssign={onAutoAssign}
                 />
               </TableCell>
             </TableRow>
@@ -411,6 +445,8 @@ export function ComplaintTable({
 export interface ComplaintCardsProps {
   complaints: Complaint[]
   onStatusChange: (complaint: Complaint, status: Status) => void
+  onAssign?: (complaint: Complaint) => void
+  onAutoAssign?: (complaint: Complaint) => void
   pendingId?: string | null
   className?: string
 }
@@ -418,6 +454,8 @@ export interface ComplaintCardsProps {
 export function ComplaintCards({
   complaints,
   onStatusChange,
+  onAssign,
+  onAutoAssign,
   pendingId,
   className,
 }: ComplaintCardsProps) {
@@ -440,6 +478,8 @@ export function ComplaintCards({
               complaint={complaint}
               pending={pendingId === complaint.id}
               onChange={(status) => onStatusChange(complaint, status)}
+              onAssign={onAssign}
+              onAutoAssign={onAutoAssign}
             />
           </div>
 
