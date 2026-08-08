@@ -53,7 +53,37 @@ const NAV = [
  */
 const API_DOCS_URL = import.meta.env.DEV ? 'http://localhost:8000/docs' : `${API_ROOT_URL}/docs`
 
-function NavItems({ onNavigate }: { onNavigate?: () => void }) {
+/**
+ * Desktop nav links are full-height so the active underline sits exactly on
+ * the header's bottom edge — the pattern every council/gov site uses, and it
+ * reads far quieter than a filled pill.
+ */
+function NavItems({ onNavigate, variant = 'bar' }: { onNavigate?: () => void; variant?: 'bar' | 'list' }) {
+  if (variant === 'list') {
+    return (
+      <>
+        {NAV.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                'hover:bg-accent hover:text-accent-foreground',
+                'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+                isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground',
+              )
+            }
+          >
+            <item.icon className="size-4" aria-hidden />
+            {item.label}
+          </NavLink>
+        ))}
+      </>
+    )
+  }
+
   return (
     <>
       {NAV.map((item) => (
@@ -63,14 +93,15 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
           onClick={onNavigate}
           className={({ isActive }) =>
             cn(
-              'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-              'hover:bg-accent hover:text-accent-foreground',
-              'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
-              isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground',
+              'relative flex h-16 items-center px-3 text-sm font-medium transition-colors',
+              'hover:text-foreground',
+              'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset focus-visible:outline-none',
+              isActive
+                ? 'text-foreground after:absolute after:inset-x-2.5 after:bottom-0 after:h-0.5 after:rounded-t-full after:bg-primary'
+                : 'text-muted-foreground',
             )
           }
         >
-          <item.icon className="size-4" aria-hidden />
           {item.label}
         </NavLink>
       ))}
@@ -80,7 +111,7 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
 
 function LogoMark() {
   return (
-    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-civic">
+    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-primary to-primary/80 text-primary-foreground shadow-civic">
       <Landmark className="size-4.5" aria-hidden strokeWidth={2.2} />
     </span>
   )
@@ -94,6 +125,7 @@ function initials(name: string, email: string): string {
 
 export default function PublicLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
   const location = useLocation()
   const user = useAuthStore((s) => s.user)
   const token = useAuthStore((s) => s.token)
@@ -105,6 +137,15 @@ export default function PublicLayout() {
   // Close the mobile drawer whenever the route changes (back button included).
   useEffect(() => setMobileOpen(false), [location.pathname])
 
+  // The header starts flush with the hero and only grows a border + shadow
+  // once content actually slides underneath it.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   return (
     <div className="flex min-h-dvh flex-col bg-background">
       <a
@@ -114,29 +155,31 @@ export default function PublicLayout() {
         Skip to content
       </a>
 
-      <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur-md">
+      <header
+        className={cn(
+          'sticky top-0 z-40 border-b bg-background/85 backdrop-blur-md transition-[border-color,box-shadow] duration-200',
+          scrolled ? 'border-border shadow-civic' : 'border-transparent',
+        )}
+      >
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-3 px-4 sm:px-6">
           <Link
             to="/"
             className="flex items-center gap-2.5 rounded-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
           >
             <LogoMark />
-            <span className="flex flex-col leading-none">
-              <span className="text-sm font-semibold tracking-tight">Civic Services</span>
-              <span className="hidden text-[0.6875rem] text-muted-foreground sm:block">
-                AI-assisted complaint triage
-              </span>
-            </span>
+            <span className="text-[0.9375rem] font-semibold tracking-tight">Civic Services</span>
           </Link>
 
-          <nav aria-label="Main" className="ml-6 hidden items-center gap-1 md:flex">
+          <nav aria-label="Main" className="ml-6 hidden items-center gap-1 self-stretch md:flex">
             <NavItems />
           </nav>
 
-          <div className="ml-auto flex items-center gap-1">
-            <Button asChild size="sm" className="hidden h-8 px-3 sm:inline-flex md:hidden lg:inline-flex">
+          <div className="ml-auto flex items-center gap-1.5">
+            <Button asChild size="sm" className="hidden h-8 rounded-full px-4 md:inline-flex">
               <Link to="/report">Report an issue</Link>
             </Button>
+
+            <span className="hidden h-5 w-px bg-border md:block" aria-hidden />
 
             <ThemeToggle />
 
@@ -190,9 +233,9 @@ export default function PublicLayout() {
             ) : (
               <Link
                 to="/signin"
-                className="hidden items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none md:inline-flex"
+                className="hidden h-8 items-center gap-1.5 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none md:inline-flex"
               >
-                <LogIn className="size-3.5" aria-hidden />
+                <LogIn className="size-4" aria-hidden />
                 Sign in
               </Link>
             )}
@@ -210,7 +253,7 @@ export default function PublicLayout() {
                   <span className="text-sm font-semibold tracking-tight">Civic Services</span>
                 </div>
                 <nav aria-label="Mobile" className="mt-6 flex flex-col gap-1">
-                  <NavItems onNavigate={() => setMobileOpen(false)} />
+                  <NavItems variant="list" onNavigate={() => setMobileOpen(false)} />
                 </nav>
                 <div className="mt-4 space-y-2 border-t pt-4">
                   <Button asChild className="w-full">
