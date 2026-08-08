@@ -4,7 +4,14 @@ React SPA for **AI Smart Civic Services** — citizens report civic issues in pl
 language, an AI pipeline categorises and prioritises them, and staff triage them
 from an admin console with a full statistics dashboard.
 
-Built against the frozen API contract in [`../docs/CONTRACT.md`](../docs/CONTRACT.md).
+Built against a frozen API contract, which is what allowed this repo and the backend
+to be written simultaneously rather than one waiting on the other.
+
+**Backend repository:** <https://github.com/aaqibnaeem/civic-services-backend> — it also
+carries the shared project documentation:
+[architecture and diagrams](https://github.com/aaqibnaeem/civic-services-backend/blob/main/docs/project/ARCHITECTURE.md) ·
+[API contract](https://github.com/aaqibnaeem/civic-services-backend/blob/main/docs/project/CONTRACT.md) ·
+[AI testing evidence](https://github.com/aaqibnaeem/civic-services-backend/blob/main/docs/AI_TESTING_EVIDENCE.md)
 
 ---
 
