@@ -41,6 +41,7 @@ import { PageHeader } from '@/components/PageHeader'
 import {
   AiAnalysisCard,
   AnalyzingPanel,
+  DEMO_COMPLAINTS,
   EXAMPLE_DESCRIPTION,
   KARACHI_AREAS,
   PageShell,
@@ -478,6 +479,29 @@ export default function ReportPage() {
                         >
                           {description.length.toLocaleString()} / {DESCRIPTION_MAX.toLocaleString()}
                         </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        <span className="text-xs text-muted-foreground">Try a sample:</span>
+                        {DEMO_COMPLAINTS.map((sample) => {
+                          const active = field.value === sample.text
+                          return (
+                            <button
+                              key={sample.label}
+                              type="button"
+                              aria-pressed={active}
+                              onClick={() => field.onChange(sample.text)}
+                              className={cn(
+                                'rounded-full border px-3 py-1 text-xs transition-colors',
+                                'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+                                active
+                                  ? 'border-primary/40 bg-primary/10 text-foreground'
+                                  : 'cursor-pointer border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground',
+                              )}
+                            >
+                              {sample.label}
+                            </button>
+                          )
+                        })}
                       </div>
                     </Field>
                   )}

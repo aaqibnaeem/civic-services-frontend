@@ -37,6 +37,50 @@ export const EXAMPLE_DESCRIPTION =
   'It is right on the pedestrian crossing children use for school and there is no cover or ' +
   'barrier around it. Two people have already tripped in the evening when it is dark.'
 
+/**
+ * One-tap sample complaints for the Describe step, taken verbatim from
+ * `demo-complaints.txt` (each was run through the live analyzer). Mix of
+ * English and Roman Urdu across categories and priorities, ending with the
+ * deliberately vague one that shows the AI admitting low confidence.
+ */
+export const DEMO_COMPLAINTS: Array<{ label: string; text: string }> = [
+  {
+    label: 'Leaning power pole',
+    text:
+      'Bijli ka khamba Sector 11-B mein jhuk gaya hai aur taarein neeche latak rahi hain. ' +
+      'Barish ka pani bhi wahan jama hai aur bachay us gali mein khelte hain. Bohat khatarnak ' +
+      'hai, koi bara hadsa ho sakta hai.',
+  },
+  {
+    label: 'Open manhole',
+    text:
+      'A manhole cover on Nishtar Road is missing and the hole is completely open. A child ' +
+      'almost fell into it yesterday evening and there is no barrier around it.',
+  },
+  {
+    label: 'Water leak',
+    text:
+      'There is a large water leak near the main road at Nishtar Road junction. Clean water has ' +
+      'been flowing onto the road for three days and traffic is becoming very difficult.',
+  },
+  {
+    label: 'Garbage pile',
+    text:
+      'Kachra ka dher gali ke corner par pichlay do haftay se para hua hai. Awara kuttay wahan ' +
+      'ghoomte hain aur badbu ki wajah se khirkiyan nahi khol sakte.',
+  },
+  {
+    label: 'Dark street light',
+    text:
+      'The street light outside house number 42 has not worked for about three weeks. The whole ' +
+      'lane is pitch dark after Maghrib and it feels unsafe.',
+  },
+  {
+    label: 'Vague report',
+    text: 'There is a problem in our street. Please send someone to look at it soon.',
+  },
+]
+
 /* ========================================================================== */
 /* "How it works" — the four-step strip on the landing page                   */
 /* ========================================================================== */

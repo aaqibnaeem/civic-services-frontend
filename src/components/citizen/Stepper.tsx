@@ -46,7 +46,7 @@ export function Stepper({ steps, current, furthest, onSelect, className }: Stepp
                 aria-current={isCurrent ? 'step' : undefined}
                 onClick={() => onSelect(index)}
                 className={cn(
-                  'group flex w-full flex-col gap-2 rounded-lg border p-2.5 text-left transition-colors sm:p-3',
+                  'group flex h-full w-full flex-col gap-2 rounded-lg border p-2.5 text-left transition-colors sm:p-3',
                   'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
                   isCurrent && 'border-primary/40 bg-primary/8 dark:bg-primary/12',
                   isDone && 'border-success/30 bg-success/8 hover:bg-success/12 dark:bg-success/10',
