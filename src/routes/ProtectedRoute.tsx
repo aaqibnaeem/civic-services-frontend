@@ -47,6 +47,12 @@ export function ProtectedRoute({
     return <Navigate to={`${redirectTo}?next=${encodeURIComponent(next)}`} replace />
   }
 
+  // A signed-in citizen has a perfectly good home; showing them a locked console
+  // would be a dead end. Send them to it instead of an access-denied panel.
+  if (requireRole && !hasRole(user, requireRole) && user?.role === 'citizen') {
+    return <Navigate to="/my-reports" replace />
+  }
+
   if (requireRole && !hasRole(user, requireRole)) {
     return (
       <div className="p-8">

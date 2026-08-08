@@ -1,7 +1,7 @@
 /**
  * `/track` — enter a reference code.
  *
- * The code is the only handle an anonymous citizen has, so this page does two
+ * The code is the handle that works without signing in, so this page does two
  * things: validate the `CIV-XXXXXX` shape before spending a request on it, and
  * offer one-tap access to every code this browser has already seen.
  */
@@ -50,7 +50,7 @@ export default function TrackPage() {
       <PageHeader
         eyebrow="Tracking"
         title="Track a report"
-        description="Enter the reference code you were given when you submitted — for example CIV-8F3K2M. No account, no password."
+        description="Enter the reference code you were given when you submitted — for example CIV-8F3K2M. A code works on its own: no sign-in needed."
       />
 
       <Card>

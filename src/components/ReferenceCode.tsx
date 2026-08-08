@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 
 export interface ReferenceCodeProps {
   code: string
-  /** Renders a copy button. Reference codes are how anonymous citizens return. */
+  /** Renders a copy button. A reference code works without signing in. */
   copyable?: boolean
   size?: 'sm' | 'md' | 'lg'
   className?: string

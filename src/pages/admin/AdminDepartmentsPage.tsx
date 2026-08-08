@@ -6,22 +6,109 @@
  */
 
 import { Link } from 'react-router-dom'
-import { ArrowUpRight, Building2, Inbox, Mail } from 'lucide-react'
+import { ArrowUpRight, Building2, Inbox, Mail, UserRound, Users } from 'lucide-react'
 
 import { CategoryBadge } from '@/components/CategoryBadge'
 import { EmptyState } from '@/components/EmptyState'
 import { ErrorState } from '@/components/ErrorState'
 import { LoadingSkeleton } from '@/components/LoadingSkeleton'
 import { PageHeader } from '@/components/PageHeader'
-import { useAnalyticsDepartments, useDepartments } from '@/hooks'
+import { useAnalyticsDepartments, useDepartments, useDepartmentStaff, sortByWorkload } from '@/hooks'
 import { CATEGORY_META, formatHours, formatNumber, formatPercent } from '@/lib/domain'
 import type { Category, DepartmentStat } from '@/lib/api/types'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Interpretation } from '@/components/charts/chart-kit'
 
 const isCategory = (value: string): value is Category => value in CATEGORY_META
+
+/**
+ * Who actually works here, and how much each of them is holding — CONTRACT §4b.
+ *
+ * Reads `GET /departments/{id}/staff` rather than the admin-only `GET /staff`,
+ * so a `staff` session sees the same roster an admin does. A department with no
+ * roster is worth saying out loud: auto-assignment cannot place anything there,
+ * so its complaints stay unassigned.
+ */
+function DepartmentStaffList({
+  departmentId,
+  departmentName,
+}: {
+  departmentId: string
+  departmentName: string
+}) {
+  const staff = useDepartmentStaff(departmentId)
+  const members = sortByWorkload(staff.data ?? [])
+
+  return (
+    <div className="space-y-2">
+      <p className="flex items-center gap-1.5 text-[0.6875rem] tracking-wide text-muted-foreground uppercase">
+        <Users className="size-3.5" aria-hidden />
+        Team
+        {members.length > 0 ? (
+          <span className="tabular normal-case">({members.length})</span>
+        ) : null}
+      </p>
+
+      {staff.isPending ? (
+        <div className="space-y-1.5">
+          <Skeleton className="h-6 w-full rounded-md" />
+          <Skeleton className="h-6 w-4/5 rounded-md" />
+        </div>
+      ) : staff.isError ? (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {staff.error?.isNotFound
+            ? 'Staff rosters are not available on this deployment yet.'
+            : staff.error?.isForbidden
+              ? 'Your account cannot see this roster.'
+              : (staff.error?.toUserMessage() ?? 'Roster unavailable.')}
+        </p>
+      ) : members.length === 0 ? (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Nobody is on {departmentName}&rsquo;s roster, so complaints routed here stay unassigned.
+        </p>
+      ) : (
+        <ul className="space-y-1">
+          {members.map((member) => {
+            const load = member.active_assignments ?? null
+            const unavailable = member.is_available === false
+            return (
+              <li
+                key={member.id}
+                className="flex items-center gap-2 rounded-md border bg-muted/30 px-2 py-1 text-xs"
+              >
+                <UserRound className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                <span className={cn('min-w-0 flex-1 truncate', unavailable && 'opacity-60')}>
+                  {member.full_name || member.email}
+                </span>
+                {unavailable ? (
+                  <span className="shrink-0 rounded-full border border-dashed px-1.5 text-[0.625rem] text-muted-foreground">
+                    unavailable
+                  </span>
+                ) : null}
+                {load !== null ? (
+                  <span
+                    className={cn(
+                      'tabular shrink-0 rounded-full border px-1.5 text-[0.625rem]',
+                      load === 0
+                        ? 'border-success/30 bg-success/10 text-success'
+                        : 'text-muted-foreground',
+                    )}
+                    title={`${load} open, assigned or in-progress complaint${load === 1 ? '' : 's'}`}
+                  >
+                    {load} active
+                  </span>
+                ) : null}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 export default function AdminDepartmentsPage() {
   const departments = useDepartments()
@@ -40,7 +127,7 @@ export default function AdminDepartmentsPage() {
       <PageHeader
         eyebrow="Directory"
         title="Departments"
-        description="Who owns which categories, how to reach them, and how much work each one is currently carrying."
+        description="Who owns which categories, who works there, how to reach them, and how much work each department — and each person in it — is currently carrying."
       />
 
       {departments.isError ? (
@@ -151,6 +238,11 @@ export default function AdminDepartmentsPage() {
                         </dd>
                       </div>
                     </dl>
+
+                    <DepartmentStaffList
+                      departmentId={department.id}
+                      departmentName={department.name}
+                    />
 
                     {department.contact_email ? (
                       <p className="flex items-center gap-1.5 text-sm text-muted-foreground">

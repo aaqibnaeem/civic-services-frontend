@@ -103,8 +103,9 @@ export default function LandingPage() {
                 </h1>
                 <p className="max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
                   Describe a pothole, a burst water main or a dead streetlight in your own words. It
-                  is read, categorised, prioritised and sent to the department that owns it —
-                  and you get a code to follow it until it is fixed.
+                  is read, categorised, prioritised and sent to the department that owns it — and
+                  you leave with a code to follow it, plus an account we create for you so every
+                  report you file stays in one place.
                 </p>
               </div>
 
@@ -131,11 +132,11 @@ export default function LandingPage() {
               <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-1.5">
                   <CircleCheck className="size-4 text-success" aria-hidden />
-                  No account needed
+                  No signup form — we make your account
                 </li>
                 <li className="flex items-center gap-1.5">
                   <ShieldCheck className="size-4 text-success" aria-hidden />
-                  Report anonymously
+                  Track by code without signing in
                 </li>
                 <li className="flex items-center gap-1.5">
                   <Zap className="size-4 text-success" aria-hidden />

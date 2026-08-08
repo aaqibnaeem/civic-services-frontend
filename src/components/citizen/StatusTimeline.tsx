@@ -55,7 +55,7 @@ function buildEntries(complaint: Complaint): TimelineEntry[] {
   entries.push({
     key: 'submitted',
     title: 'Report received',
-    detail: `Filed anonymously from a browser and given the reference ${complaint.reference_code}.`,
+    detail: `Filed from a browser and given the reference ${complaint.reference_code}.`,
     timestamp: complaint.created_at,
     state: 'done',
     icon: Send,

@@ -14,16 +14,31 @@ import {
   FileText,
   Landmark,
   ListChecks,
+  LogIn,
+  LogOut,
   Menu,
   Search,
   Shield,
+  SlidersHorizontal,
 } from 'lucide-react'
 
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { useLogout } from '@/hooks/useAuth'
 import { API_ROOT_URL } from '@/lib/api/client'
+import { ROLE_META } from '@/lib/domain'
 import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/authStore'
 
 const NAV = [
   { to: '/report', label: 'Report', icon: FileText },
@@ -71,9 +86,21 @@ function LogoMark() {
   )
 }
 
+function initials(name: string, email: string): string {
+  const source = name.trim() || email
+  const parts = source.split(/[\s@._-]+/).filter(Boolean)
+  return (parts[0]?.[0] ?? 'C').concat(parts[1]?.[0] ?? '').toUpperCase()
+}
+
 export default function PublicLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
+  const user = useAuthStore((s) => s.user)
+  const token = useAuthStore((s) => s.token)
+  // Citizens sign out back onto the public site, not into a staff console.
+  const logout = useLogout('/')
+  const signedIn = Boolean(token && user)
+  const isStaff = user?.role === 'staff' || user?.role === 'admin'
 
   // Close the mobile drawer whenever the route changes (back button included).
   useEffect(() => setMobileOpen(false), [location.pathname])
@@ -113,13 +140,62 @@ export default function PublicLayout() {
 
             <ThemeToggle />
 
-            <Link
-              to="/admin/login"
-              className="hidden items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none md:inline-flex"
-            >
-              <Shield className="size-3.5" aria-hidden />
-              Staff login
-            </Link>
+            {signedIn ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" aria-label="Account menu">
+                    <Avatar className="size-8">
+                      <AvatarFallback className="text-xs font-semibold">
+                        {initials(user?.full_name ?? '', user?.email ?? '')}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-60">
+                  <DropdownMenuLabel className="flex flex-col gap-0.5">
+                    <span className="truncate text-sm">
+                      {user?.full_name || 'Signed in'}
+                    </span>
+                    <span className="truncate text-xs font-normal text-muted-foreground">
+                      {user?.email}
+                    </span>
+                    {user?.role ? (
+                      <span className="mt-1 w-fit rounded-full border bg-muted/60 px-1.5 py-px text-[0.625rem] font-normal text-muted-foreground">
+                        {ROLE_META[user.role].label}
+                      </span>
+                    ) : null}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/my-reports">
+                      <ListChecks className="size-4" aria-hidden />
+                      My reports
+                    </Link>
+                  </DropdownMenuItem>
+                  {isStaff ? (
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin">
+                        <SlidersHorizontal className="size-4" aria-hidden />
+                        Staff console
+                      </Link>
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={logout} variant="destructive">
+                    <LogOut className="size-4" aria-hidden />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Link
+                to="/signin"
+                className="hidden items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none md:inline-flex"
+              >
+                <LogIn className="size-3.5" aria-hidden />
+                Sign in
+              </Link>
+            )}
 
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
@@ -142,14 +218,62 @@ export default function PublicLayout() {
                       Report an issue
                     </Link>
                   </Button>
-                  <Link
-                    to="/admin/login"
-                    onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    <Shield className="size-4" aria-hidden />
-                    Staff login
-                  </Link>
+
+                  {signedIn ? (
+                    <>
+                      <div className="rounded-md border bg-muted/40 px-3 py-2">
+                        <p className="truncate text-sm font-medium">
+                          {user?.full_name || 'Signed in'}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+                        {user?.role ? (
+                          <p className="mt-1 text-[0.625rem] text-muted-foreground">
+                            {ROLE_META[user.role].label}
+                          </p>
+                        ) : null}
+                      </div>
+                      {isStaff ? (
+                        <Link
+                          to="/admin"
+                          onClick={() => setMobileOpen(false)}
+                          className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          <SlidersHorizontal className="size-4" aria-hidden />
+                          Staff console
+                        </Link>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileOpen(false)
+                          logout()
+                        }}
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-destructive"
+                      >
+                        <LogOut className="size-4" aria-hidden />
+                        Sign out
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        to="/signin"
+                        onClick={() => setMobileOpen(false)}
+                        className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <LogIn className="size-4" aria-hidden />
+                        Sign in
+                      </Link>
+                      <Link
+                        to="/admin/login"
+                        onClick={() => setMobileOpen(false)}
+                        className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <Shield className="size-4" aria-hidden />
+                        Staff login
+                      </Link>
+                    </>
+                  )}
                 </div>
               </SheetContent>
             </Sheet>
@@ -191,6 +315,24 @@ export default function PublicLayout() {
                       </Link>
                     </li>
                   ))}
+                  <li>
+                    {signedIn ? (
+                      <button
+                        type="button"
+                        onClick={logout}
+                        className="text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        Sign out
+                      </button>
+                    ) : (
+                      <Link
+                        to="/signin"
+                        className="text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        Sign in
+                      </Link>
+                    )}
+                  </li>
                 </ul>
               </div>
 

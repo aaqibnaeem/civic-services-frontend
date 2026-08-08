@@ -25,10 +25,12 @@ import { qk } from '@/lib/api/queryKeys'
 import type {
   Complaint,
   ComplaintCreate,
+  ComplaintCreateResponse,
   ComplaintDetail,
   ComplaintFilters,
   ComplaintUpdate,
   DuplicatesResponse,
+  MyComplaintFilters,
   Page,
 } from '@/lib/api/types'
 import { useTrackedStore } from '@/stores/trackedStore'
@@ -47,6 +49,23 @@ export function useComplaints(filters: ComplaintFilters = {}, enabled = true) {
     queryFn: () => endpoints.listComplaints(filters),
     placeholderData: keepPreviousData,
     enabled,
+  })
+}
+
+/**
+ * `GET /complaints/mine` — the signed-in citizen's own reports (CONTRACT §4b).
+ *
+ * Never retries a 404: a deployment whose API predates v2 answers 404 here, and
+ * /my-reports falls back to the reference codes stored in this browser rather
+ * than hammering an endpoint that does not exist.
+ */
+export function useMyComplaints(filters: MyComplaintFilters = {}, enabled = true) {
+  return useQuery<Page<Complaint>, ApiError>({
+    queryKey: qk.complaints.mine(filters),
+    queryFn: () => endpoints.listMyComplaints(filters),
+    placeholderData: keepPreviousData,
+    enabled,
+    retry: (count, error) => !error.isNotFound && !error.isUnauthorized && count < 1,
   })
 }
 
@@ -183,13 +202,15 @@ export function usePollUntilAnalyzed(
 
 /**
  * Public submission. On success the reference code is written to `trackedStore`
- * so an anonymous citizen can find the complaint again from this browser.
+ * so the complaint is findable from this browser even before the citizen ever
+ * signs in — the account (CONTRACT §4b) and the local code list are belt and
+ * braces, not alternatives.
  */
 export function useCreateComplaint() {
   const queryClient = useQueryClient()
   const addTracked = useTrackedStore((s) => s.addFromComplaint)
 
-  return useMutation<Complaint, ApiError, ComplaintCreate>({
+  return useMutation<ComplaintCreateResponse, ApiError, ComplaintCreate>({
     mutationFn: (payload) => endpoints.createComplaint(payload),
     onSuccess: (complaint) => {
       addTracked(complaint)
@@ -197,6 +218,7 @@ export function useCreateComplaint() {
       // the poller has a starting value.
       queryClient.setQueryData(qk.complaints.track(complaint.reference_code), complaint)
       queryClient.invalidateQueries({ queryKey: qk.complaints.lists() })
+      queryClient.invalidateQueries({ queryKey: qk.complaints.mineAll() })
       queryClient.invalidateQueries({ queryKey: qk.analytics.all() })
     },
   })
@@ -205,6 +227,12 @@ export function useCreateComplaint() {
 interface UpdateVariables {
   id: string
   patch: ComplaintUpdate
+  /**
+   * Fields to paint optimistically that cannot be derived from the patch — the
+   * assignment panel knows the staff member behind an `assignee_id`, this hook
+   * does not. Rolled back with everything else if the request fails.
+   */
+  optimistic?: Partial<Complaint>
 }
 
 interface UpdateContext {
@@ -233,7 +261,7 @@ export function useUpdateComplaint() {
   return useMutation<Complaint, ApiError, UpdateVariables, UpdateContext>({
     mutationFn: ({ id, patch }) => endpoints.updateComplaint(id, patch),
 
-    onMutate: async ({ id, patch }) => {
+    onMutate: async ({ id, patch, optimistic }) => {
       // Stop in-flight refetches so they cannot clobber the optimistic value.
       await queryClient.cancelQueries({ queryKey: qk.complaints.detail(id) })
       await queryClient.cancelQueries({ queryKey: qk.complaints.lists() })
@@ -245,10 +273,13 @@ export function useUpdateComplaint() {
         queryKey: qk.complaints.lists(),
       })
 
-      const applied = {
+      const applied: Partial<Complaint> = {
         ...(patch.status !== undefined && { status: patch.status }),
         ...(patch.priority !== undefined && { priority: patch.priority }),
         ...(patch.category !== undefined && { category: patch.category }),
+        // Unassigning has exactly one possible outcome, so paint it immediately.
+        ...(patch.assignee_id === null && { assignee: null, assigned_at: null }),
+        ...optimistic,
       }
 
       if (previousDetail) {
@@ -284,23 +315,74 @@ export function useUpdateComplaint() {
       toast.error('Update failed', { description: error.toUserMessage() })
     },
 
-    onSuccess: (complaint) => {
+    onSuccess: (complaint, { patch }) => {
       // Trust the server response over the optimistic guess — but merge, never
       // replace: PATCH returns a bare Complaint with no `timeline`, so assigning
       // it would strip the timeline out of a cached detail and break any consumer
       // reading it before the refetch below lands.
       mergeIntoDetail(queryClient, complaint)
       queryClient.setQueryData(qk.complaints.track(complaint.reference_code), complaint)
+
+      const assignmentOnly =
+        'assignee_id' in patch && patch.status === undefined && patch.category === undefined
       toast.success('Complaint updated', {
-        description: `${complaint.reference_code} is now ${complaint.status.replace('_', ' ')}.`,
+        description: assignmentOnly
+          ? complaint.assignee
+            ? `${complaint.reference_code} is assigned to ${complaint.assignee.full_name}.`
+            : `${complaint.reference_code} is now unassigned.`
+          : `${complaint.reference_code} is now ${complaint.status.replace('_', ' ')}.`,
       })
     },
 
-    onSettled: (_data, _error, { id }) => {
+    onSettled: (_data, _error, { id, patch }) => {
       // Server is the authority for derived fields (resolution_hours, timeline).
       queryClient.invalidateQueries({ queryKey: qk.complaints.detail(id) })
       queryClient.invalidateQueries({ queryKey: qk.complaints.lists() })
       queryClient.invalidateQueries({ queryKey: qk.analytics.all() })
+      // Reassignment moves a case between staff workloads, so the "3 active"
+      // counters beside every name are stale the moment this lands.
+      if ('assignee_id' in patch || patch.status !== undefined) {
+        queryClient.invalidateQueries({ queryKey: qk.staff.all() })
+        queryClient.invalidateQueries({ queryKey: qk.departments.all() })
+      }
+    },
+  })
+}
+
+/**
+ * `POST /complaints/{id}/auto-assign` — re-runs the workload-balancing rule
+ * (CONTRACT §4b).
+ *
+ * Owns its error toast so the 409 the API returns when no assignment is possible
+ * is shown verbatim rather than as a generic "Action failed".
+ */
+export function useAutoAssignComplaint() {
+  const queryClient = useQueryClient()
+
+  return useMutation<Complaint, ApiError, string>({
+    mutationFn: (id) => endpoints.autoAssignComplaint(id),
+    onSuccess: (complaint) => {
+      mergeIntoDetail(queryClient, complaint)
+      queryClient.setQueryData(qk.complaints.track(complaint.reference_code), complaint)
+      queryClient.invalidateQueries({ queryKey: qk.complaints.detail(complaint.id) })
+      queryClient.invalidateQueries({ queryKey: qk.complaints.lists() })
+      queryClient.invalidateQueries({ queryKey: qk.staff.all() })
+      queryClient.invalidateQueries({ queryKey: qk.departments.all() })
+
+      if (complaint.assignee) {
+        toast.success('Auto-assigned', {
+          description: `${complaint.reference_code} went to ${complaint.assignee.full_name} — the available person in that department with the lightest load.`,
+        })
+      } else {
+        // CONTRACT §4b: an unassignable complaint stays put; it is never dropped.
+        toast.warning('Nobody available to take this', {
+          description:
+            'No available staff in that department, so the complaint is still unassigned. It has not been changed otherwise.',
+        })
+      }
+    },
+    onError: (error) => {
+      toast.error('Auto-assign failed', { description: error.toUserMessage() })
     },
   })
 }

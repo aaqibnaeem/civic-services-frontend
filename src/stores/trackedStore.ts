@@ -1,9 +1,11 @@
 /**
  * Tracked-complaints store — the reference codes THIS browser has submitted.
  *
- * Anonymous citizens have no account, so localStorage is the only way they can
- * find their complaints again. This is the /my-reports data source. Treat it as
- * genuinely load-bearing: never clear it as a side effect of anything else.
+ * Citizens do get an account now (CONTRACT §4b), but they get it *after* filing
+ * and they may never sign in. Until they do, localStorage is the only way they
+ * can find their complaints again, so this stays the signed-out /my-reports data
+ * source. Treat it as genuinely load-bearing: never clear it as a side effect of
+ * anything else — least of all of signing in.
  */
 
 import { create } from 'zustand'

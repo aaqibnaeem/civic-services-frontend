@@ -19,6 +19,8 @@ import {
   SignalHigh,
   Tag,
   Trash2,
+  UserCheck,
+  UserRound,
   X,
 } from 'lucide-react'
 
@@ -35,6 +37,7 @@ import type {
   ComplaintFilters,
   Department,
   Priority,
+  StaffMember,
   Status,
 } from '@/lib/api/types'
 import { useUiStore } from '@/stores/uiStore'
@@ -69,6 +72,13 @@ export interface InboxToolbarProps {
   onApplyView: (filters: ComplaintFilters) => void
   departments: Department[]
   areas: string[]
+  /**
+   * Staff directory for the assignee facet. Empty when `GET /staff` is not
+   * available to this account (it is admin-only) — the facet then hides itself
+   * rather than offering an empty dropdown, but "Assigned to me" still works
+   * because that filter needs no directory at all.
+   */
+  staff?: StaffMember[]
   className?: string
 }
 
@@ -82,6 +92,7 @@ export function InboxToolbar({
   onApplyView,
   departments,
   areas,
+  staff = [],
   className,
 }: InboxToolbarProps) {
   const savedViews = useUiStore((s) => s.savedViews)
@@ -95,6 +106,14 @@ export function InboxToolbar({
 
   const active = hasActiveFilters(filters)
   const departmentName = departments.find((d) => d.id === filters.department_id)?.name
+  const assignee = staff.find((member) => member.id === filters.assignee_id)
+  const staffName = (member: StaffMember) => member.full_name || member.email
+
+  /** `mine` and a named assignee are two answers to one question — never both. */
+  const toggleMine = () =>
+    onFiltersChange({ mine: filters.mine ? undefined : true, assignee_id: undefined })
+  const selectAssignee = (value: string | undefined) =>
+    onFiltersChange({ assignee_id: value, mine: undefined })
 
   const chips: Array<{ key: string; label: string; onRemove: () => void }> = []
   if (filters.q) {
@@ -130,6 +149,20 @@ export function InboxToolbar({
       key: 'department',
       label: departmentName ?? 'Department',
       onRemove: () => onFiltersChange({ department_id: undefined }),
+    })
+  }
+  if (filters.mine) {
+    chips.push({
+      key: 'mine',
+      label: 'Assigned to me',
+      onRemove: () => onFiltersChange({ mine: undefined }),
+    })
+  }
+  if (filters.assignee_id) {
+    chips.push({
+      key: 'assignee',
+      label: assignee ? `Assigned to ${staffName(assignee)}` : 'One assignee',
+      onRemove: () => selectAssignee(undefined),
     })
   }
   if (filters.area) {
@@ -230,6 +263,45 @@ export function InboxToolbar({
           }
           onClear={() => onFiltersChange({ department_id: undefined })}
         />
+
+        {staff.length > 0 ? (
+          <FacetFilter
+            label="Assignee"
+            icon={UserRound}
+            single
+            options={staff.map((member) => ({
+              value: member.id,
+              label: member.is_available === false
+                ? `${staffName(member)} · unavailable`
+                : staffName(member),
+              count: member.active_assignments ?? undefined,
+            }))}
+            selected={filters.assignee_id ? [filters.assignee_id] : []}
+            onToggle={(value) =>
+              selectAssignee(filters.assignee_id === value ? undefined : value)
+            }
+            onClear={() => selectAssignee(undefined)}
+          />
+        ) : null}
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={filters.mine ? 'default' : 'outline'}
+              size="sm"
+              aria-pressed={Boolean(filters.mine)}
+              onClick={toggleMine}
+              className={cn('gap-1.5', !filters.mine && 'border-dashed')}
+            >
+              <UserCheck className="size-4" aria-hidden />
+              Assigned to me
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-56">
+            Only complaints assigned to the account you are signed in as. Filtered by the server
+            (<code>mine=true</code>), so the count is the real one.
+          </TooltipContent>
+        </Tooltip>
 
         <FacetFilter
           label="Area"

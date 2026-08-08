@@ -8,7 +8,14 @@
 
 import { Link, useNavigate } from 'react-router-dom'
 import { formatDistanceToNowStrict, parseISO } from 'date-fns'
-import { ArrowDown, ArrowUp, ChevronsUpDown, Ellipsis, LoaderCircle } from 'lucide-react'
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronsUpDown,
+  Ellipsis,
+  LoaderCircle,
+  UserRound,
+} from 'lucide-react'
 
 import { AiSourceBadge } from '@/components/AiSourceBadge'
 import { CategoryBadge } from '@/components/CategoryBadge'
@@ -55,6 +62,57 @@ export function complaintAge(createdAt: string): string {
 export function allowedTransitions(status: Status): Status[] {
   if (STATUS_META[status].terminal) return []
   return STATUS_OPTIONS.map((option) => option.value).filter((value) => value !== status)
+}
+
+/**
+ * Who is carrying this complaint.
+ *
+ * "Unassigned" is drawn as a real state rather than an em dash: roughly 800
+ * seeded rows predate assignment and will read `assignee: null` forever, and a
+ * complaint nobody owns is exactly the thing a triage screen should make
+ * visible.
+ */
+export function AssigneeCell({
+  complaint,
+  className,
+}: {
+  complaint: Complaint
+  className?: string
+}) {
+  if (!complaint.assignee) {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1 rounded-full border border-dashed border-muted-foreground/40 px-1.5 py-0.5 text-[0.6875rem] font-medium text-muted-foreground',
+          className,
+        )}
+      >
+        <UserRound className="size-3" aria-hidden />
+        Unassigned
+      </span>
+    )
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className={cn('block min-w-0 cursor-help truncate', className)}>
+          {complaint.assignee.full_name || complaint.assignee.email}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="block max-w-xs space-y-0.5 py-2">
+        <span className="block font-semibold">
+          {complaint.assignee.full_name || complaint.assignee.email}
+        </span>
+        <span className="block opacity-90">{complaint.assignee.email}</span>
+        {complaint.assigned_at ? (
+          <span className="block text-xs opacity-75">
+            Assigned {complaintAge(complaint.assigned_at)} ago
+          </span>
+        ) : null}
+      </TooltipContent>
+    </Tooltip>
+  )
 }
 
 /* ========================================================================== */
@@ -228,6 +286,7 @@ export function ComplaintTable({
               onSort={onSort}
               className="w-32"
             />
+            <TableHead className="hidden w-32 lg:table-cell">Assignee</TableHead>
             <TableHead className="hidden w-36 2xl:table-cell">Department</TableHead>
             <TableHead className="hidden w-28 xl:table-cell">Area</TableHead>
             <SortHeader
@@ -285,6 +344,10 @@ export function ComplaintTable({
 
               <TableCell className="align-top">
                 <StatusBadge status={complaint.status} size="sm" dot />
+              </TableCell>
+
+              <TableCell className="hidden max-w-32 align-top text-xs lg:table-cell">
+                <AssigneeCell complaint={complaint} />
               </TableCell>
 
               <TableCell className="hidden max-w-36 align-top text-xs text-muted-foreground 2xl:table-cell">
@@ -394,7 +457,7 @@ export function ComplaintCards({
             ) : null}
           </div>
 
-          <p className="mt-2.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+          <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span>{complaint.area ?? 'Unknown area'}</span>
             <span aria-hidden>·</span>
             <span className="tabular">{complaintAge(complaint.created_at)} old</span>
@@ -404,6 +467,8 @@ export function ComplaintCards({
                 <span className="truncate">{complaint.department.name}</span>
               </>
             ) : null}
+            <span aria-hidden>·</span>
+            <AssigneeCell complaint={complaint} className="max-w-40" />
           </p>
         </li>
       ))}

@@ -52,7 +52,7 @@ export const HOW_IT_WORKS: HowItWorksStep[] = [
     icon: PenLine,
     title: 'You describe it',
     detail:
-      'Write the problem in plain Urdu-English, the way you would tell a neighbour. No forms full of codes, no account, no login.',
+      'Write the problem in plain Urdu-English, the way you would tell a neighbour. No forms full of codes and no signup — leave your email and the account is created for you.',
   },
   {
     icon: BrainCircuit,
@@ -70,7 +70,7 @@ export const HOW_IT_WORKS: HowItWorksStep[] = [
     icon: Search,
     title: 'You track it',
     detail:
-      'You get a reference code like CIV-8F3K2M. Type it in at any time to see the current status and everything the AI understood.',
+      'You get a reference code like CIV-8F3K2M — type it in any time, no sign-in needed — and your account gathers every report you have filed in one list.',
   },
 ]
 

@@ -16,6 +16,7 @@ import type {
   CategoriesResponse,
   Complaint,
   ComplaintCreate,
+  ComplaintCreateResponse,
   ComplaintDetail,
   ComplaintFilters,
   ComplaintUpdate,
@@ -25,11 +26,13 @@ import type {
   HealthResponse,
   InsightsResponse,
   LoginRequest,
+  MyComplaintFilters,
   OverviewResponse,
   Page,
   PrioritiesResponse,
   PublicSummaryResponse,
   ResolutionTimesResponse,
+  StaffMember,
   TokenResponse,
   TrendsResponse,
   User,
@@ -43,13 +46,58 @@ function toQuery(filters?: object): Record<string, QueryValue> {
   return (filters ?? {}) as Record<string, QueryValue>
 }
 
+/**
+ * CONTRACT §5.5 says every list endpoint is paginated, but the v2 staff
+ * endpoints are small directories that may reasonably answer with a bare array
+ * (`/departments` already does). Accept either shape rather than crashing on
+ * whichever one the backend picked.
+ */
+function unwrapList<T>(payload: T[] | Page<T> | null | undefined): T[] {
+  if (Array.isArray(payload)) return payload
+  if (payload && Array.isArray((payload as Page<T>).items)) return (payload as Page<T>).items
+  return []
+}
+
+/** The mirror image of {@link unwrapList} — normalise a list into a `Page`. */
+function toPage<T>(payload: T[] | Page<T> | null | undefined, pageSize = 20): Page<T> {
+  if (payload && !Array.isArray(payload) && Array.isArray((payload as Page<T>).items)) {
+    return payload as Page<T>
+  }
+  const items = Array.isArray(payload) ? payload : []
+  return {
+    items,
+    total: items.length,
+    page: 1,
+    page_size: items.length || pageSize,
+    pages: 1,
+  }
+}
+
 /* ========================================================================== */
 /* Public — no auth                                                           */
 /* ========================================================================== */
 
-/** `POST /complaints` → 201 with `ai_status:"pending"`. Never blocks on the LLM. */
+/**
+ * `POST /complaints` → 201 with `ai_status:"pending"`. Never blocks on the LLM.
+ *
+ * Since CONTRACT §4b the response also carries an `account` block: the API finds
+ * or creates a citizen account for `citizen_email` and returns its default
+ * password the first time. Sent without auth even when a citizen is signed in —
+ * the endpoint is public and links by email.
+ */
 export function createComplaint(payload: ComplaintCreate) {
-  return api.post<Complaint>('/complaints', payload, { auth: false })
+  return api.post<ComplaintCreateResponse>('/complaints', payload, { auth: false })
+}
+
+/**
+ * `GET /complaints/mine` — the signed-in citizen's own complaints, paginated.
+ * Never returns anyone else's, so no filtering happens client-side.
+ */
+export async function listMyComplaints(filters: MyComplaintFilters = {}) {
+  const payload = await api.get<Page<Complaint> | Complaint[]>('/complaints/mine', {
+    query: toQuery(filters),
+  })
+  return toPage(payload, filters.page_size ?? 20)
 }
 
 /** `GET /complaints/track/{reference_code}` → 404 if unknown. */
@@ -123,6 +171,31 @@ export function updateComplaint(id: string, payload: ComplaintUpdate) {
  * `Complaint`; see the note on {@link updateComplaint}. */
 export function reanalyzeComplaint(id: string) {
   return api.post<Complaint>(`/complaints/${encodeURIComponent(id)}/reanalyze`)
+}
+
+/**
+ * `POST /complaints/{id}/auto-assign` — re-runs the workload-balancing rule
+ * (CONTRACT §4b). Returns a bare `Complaint`; see the note on
+ * {@link updateComplaint}. Answers `409` when no assignment is possible.
+ */
+export function autoAssignComplaint(id: string) {
+  return api.post<Complaint>(`/complaints/${encodeURIComponent(id)}/auto-assign`)
+}
+
+/** `GET /staff` — admin only: every staff member with department and workload. */
+export async function listStaff(params?: { department_id?: string }) {
+  const payload = await api.get<StaffMember[] | Page<StaffMember>>('/staff', {
+    query: toQuery(params),
+  })
+  return unwrapList(payload)
+}
+
+/** `GET /departments/{id}/staff` — staff in one department, with workload. */
+export async function listDepartmentStaff(departmentId: string) {
+  const payload = await api.get<StaffMember[] | Page<StaffMember>>(
+    `/departments/${encodeURIComponent(departmentId)}/staff`,
+  )
+  return unwrapList(payload)
 }
 
 /** `GET /complaints/{id}/duplicates` */

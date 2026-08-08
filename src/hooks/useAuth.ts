@@ -16,8 +16,12 @@ import { useAuthStore } from '@/stores/authStore'
 /**
  * `POST /auth/login`. Writes the token + user into the auth store and navigates
  * to `redirectTo` (defaults to the triage inbox).
+ *
+ * `redirectTo` may be a function of the signed-in user, because the two sign-in
+ * screens share one endpoint but not one destination: a citizen belongs on
+ * /my-reports and would only bounce off the admin guard.
  */
-export function useLogin(redirectTo = '/admin') {
+export function useLogin(redirectTo: string | ((user: User) => string) = '/admin') {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const setSession = useAuthStore((s) => s.login)
@@ -28,7 +32,10 @@ export function useLogin(redirectTo = '/admin') {
       setSession(data)
       queryClient.setQueryData(qk.auth.me(), data.user)
       toast.success(`Welcome back, ${data.user.full_name || data.user.email}`)
-      navigate(redirectTo, { replace: true })
+      navigate(
+        typeof redirectTo === 'function' ? redirectTo(data.user) : redirectTo,
+        { replace: true },
+      )
     },
     onError: (error) => {
       toast.error('Sign-in failed', {
@@ -58,8 +65,14 @@ export function useMe(enabled = true) {
   })
 }
 
-/** Clears the session, wipes the cache, and returns to the login screen. */
-export function useLogout() {
+/**
+ * Clears the session, wipes the cache, and navigates away.
+ *
+ * `redirectTo` defaults to the staff login because that is where the console
+ * uses it; the public site passes `/` so a citizen signing out lands back on the
+ * site they were using rather than on a staff console they cannot enter.
+ */
+export function useLogout(redirectTo = '/admin/login') {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const logout = useAuthStore((s) => s.logout)
@@ -67,7 +80,7 @@ export function useLogout() {
   return () => {
     logout()
     queryClient.clear()
-    navigate('/admin/login', { replace: true })
+    navigate(redirectTo, { replace: true })
     toast.success('Signed out')
   }
 }

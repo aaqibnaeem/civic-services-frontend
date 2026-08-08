@@ -127,6 +127,20 @@ export interface StatusEvent {
   created_at: ISODateTime
 }
 
+/**
+ * The staff member a complaint is assigned to — CONTRACT §4b.
+ *
+ * Nullable and OPTIONAL on purpose: roughly 800 seeded complaints predate
+ * assignment and will carry `assignee: null` forever, and a deployment running
+ * the pre-v2 API omits the key entirely. Never read it without a fallback.
+ */
+export interface AssigneeRef {
+  id: UUID
+  full_name: string
+  email: string
+  department_id: UUID | null
+}
+
 export interface Complaint {
   id: UUID
   /** Public tracking handle, e.g. `CIV-8F3K2M`. Unique, human-typeable. */
@@ -153,6 +167,14 @@ export interface Complaint {
   updated_at: ISODateTime
   resolved_at: ISODateTime | null
   resolution_hours: number | null
+
+  /* ---- v2 (CONTRACT §4b). Optional: seeded rows and pre-v2 APIs omit them. -- */
+
+  /** The citizen account this complaint belongs to. `null` on seeded rows. */
+  citizen_id?: UUID | null
+  /** Staff member currently responsible. `null` when nobody is available. */
+  assignee?: AssigneeRef | null
+  assigned_at?: ISODateTime | null
 }
 
 /** `GET /complaints/{id}` — adds the status timeline. */
@@ -160,12 +182,46 @@ export interface ComplaintDetail extends Complaint {
   timeline: StatusEvent[]
 }
 
+/**
+ * The account block returned by `POST /complaints` — CONTRACT §4b.
+ *
+ * The citizen never fills in a signup form: the API finds or creates a `citizen`
+ * user for the email they gave. `default_password` is present ONLY when
+ * `is_new` is true; it is `null` for a returning email.
+ */
+export interface AccountInfo {
+  email: string
+  is_new: boolean
+  default_password: string | null
+}
+
+/**
+ * `POST /complaints` — a `Complaint` plus the account block. Optional so a
+ * pre-v2 API (which returns a bare `Complaint`) still submits successfully.
+ */
+export interface ComplaintCreateResponse extends Complaint {
+  account?: AccountInfo | null
+}
+
 export interface User {
   id: UUID
   email: string
   full_name: string
   role: Role
+
+  /* ---- v2 (CONTRACT §4b) — meaningful for `staff`, optional everywhere. ---- */
+
+  department_id?: UUID | null
+  is_available?: boolean
+  department?: DepartmentRef | null
+  /** open + assigned + in_progress complaints held by this staff member. */
+  active_assignments?: number | null
+  /** Sum of priority weights across their active complaints, when the API sends it. */
+  workload_score?: number | null
 }
+
+/** `GET /staff` and `GET /departments/{id}/staff` — a user plus workload. */
+export type StaffMember = User
 
 /* ========================================================================== */
 /* 3. Request bodies                                                          */
@@ -181,7 +237,11 @@ export interface ComplaintCreate {
   longitude?: number | null
   citizen_name?: string | null
   citizen_phone?: string | null
-  citizen_email?: string | null
+  /**
+   * REQUIRED since CONTRACT §4b — it is the key the API finds or creates the
+   * citizen's account with, so the complaint can be listed under it later.
+   */
+  citizen_email: string
   image_url?: string | null
   /** Optional citizen hint; the AI still runs and may override it. */
   category?: Category | null
@@ -193,6 +253,8 @@ export interface ComplaintUpdate {
   priority?: Priority
   category?: Category
   department_id?: UUID
+  /** CONTRACT §4b: a staff uuid, or `null` to unassign. */
+  assignee_id?: UUID | null
   /** Max 1000 chars. Recorded on the appended StatusEvent. */
   note?: string
 }
@@ -240,6 +302,18 @@ export interface ComplaintFilters {
   /** 1-based. */
   page?: number
   /** Default 20, max 100. */
+  page_size?: number
+  /** CONTRACT §4b — complaints assigned to one staff member. */
+  assignee_id?: UUID
+  /** CONTRACT §4b — complaints assigned to the caller. */
+  mine?: boolean
+}
+
+/** `GET /complaints/mine` — the signed-in citizen's own reports. */
+export interface MyComplaintFilters {
+  status?: Status[]
+  /** 1-based. */
+  page?: number
   page_size?: number
 }
 

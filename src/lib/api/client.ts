@@ -33,6 +33,8 @@ export const API_BASE_URL = (
 export const API_ROOT_URL = API_BASE_URL.replace(/\/api\/v\d+$/, '') || ''
 
 export const LOGIN_PATH = '/admin/login'
+/** Citizens sign in somewhere else entirely — CONTRACT §4b accounts. */
+export const CITIZEN_LOGIN_PATH = '/signin'
 
 /* -------------------------------------------------------------------------- */
 /* ApiError                                                                    */
@@ -244,17 +246,22 @@ function networkError(cause: unknown): ApiError {
 let redirectingToLogin = false
 
 function handleUnauthorized() {
-  const hadSession = Boolean(useAuthStore.getState().token)
+  const { token, user } = useAuthStore.getState()
+  const hadSession = Boolean(token)
+  // Read the role BEFORE clearing: an expired citizen session must be sent to
+  // the citizen sign-in page, not to a staff console they can never enter.
+  const loginPath = user?.role === 'citizen' ? CITIZEN_LOGIN_PATH : LOGIN_PATH
   useAuthStore.getState().clear()
 
   if (typeof window === 'undefined' || !hadSession || redirectingToLogin) return
   if (window.location.pathname === LOGIN_PATH) return
+  if (window.location.pathname === CITIZEN_LOGIN_PATH) return
 
   redirectingToLogin = true
   const next = encodeURIComponent(
     window.location.pathname + window.location.search,
   )
-  window.location.assign(`${LOGIN_PATH}?next=${next}`)
+  window.location.assign(`${loginPath}?next=${next}`)
 }
 
 /* -------------------------------------------------------------------------- */

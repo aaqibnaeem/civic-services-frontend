@@ -51,6 +51,10 @@ export function parseInboxFilters(params: URLSearchParams): ComplaintFilters {
     priority: readEnumList<Priority>(params, 'priority', PRIORITIES),
     status: readEnumList<Status>(params, 'status', STATUSES),
     department_id: params.get('department_id') || undefined,
+    assignee_id: params.get('assignee_id') || undefined,
+    // Only ever `true` or absent: `mine=false` is the same query as no filter,
+    // and sending it would just make two URLs mean one thing.
+    mine: params.get('mine') === 'true' ? true : undefined,
     area: params.get('area') || undefined,
     date_from: params.get('date_from') || undefined,
     date_to: params.get('date_to') || undefined,
@@ -71,6 +75,8 @@ export function serialiseInboxFilters(filters: ComplaintFilters): URLSearchParam
   for (const value of filters.priority ?? []) params.append('priority', value)
   for (const value of filters.status ?? []) params.append('status', value)
   if (filters.department_id) params.set('department_id', filters.department_id)
+  if (filters.assignee_id) params.set('assignee_id', filters.assignee_id)
+  if (filters.mine) params.set('mine', 'true')
   if (filters.area) params.set('area', filters.area)
   if (filters.date_from) params.set('date_from', filters.date_from)
   if (filters.date_to) params.set('date_to', filters.date_to)
@@ -91,6 +97,8 @@ export function hasActiveFilters(filters: ComplaintFilters): boolean {
       filters.priority?.length ||
       filters.status?.length ||
       filters.department_id ||
+      filters.assignee_id ||
+      filters.mine ||
       filters.area ||
       filters.date_from ||
       filters.date_to,

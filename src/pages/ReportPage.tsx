@@ -55,7 +55,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/c
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { useAnalyzePreview, useCreateComplaint } from '@/hooks'
-import type { Category, Complaint, ComplaintCreate } from '@/lib/api/types'
+import type { Category, ComplaintCreate, ComplaintCreateResponse } from '@/lib/api/types'
 import { CATEGORY_META } from '@/lib/domain'
 import { cn } from '@/lib/utils'
 import { useDraftStore } from '@/stores/draftStore'
@@ -88,9 +88,15 @@ const reportSchema = z.object({
       message: 'Enter a reachable phone number, or leave it blank.',
     })
     .optional(),
+  // Required since CONTRACT §4b: the API finds or creates the citizen's account
+  // from this address, which is the only way their reports can be listed
+  // together later. Two messages, because "required" and "malformed" are
+  // different mistakes and deserve different sentences.
   citizen_email: z
-    .union([z.literal(''), z.email('Enter a valid email address, or leave it blank.')])
-    .optional(),
+    .string()
+    .trim()
+    .min(1, 'We need your email — it is how your account is created.')
+    .pipe(z.email('That does not look like an email address. Example: you@example.com')),
 })
 
 type ReportValues = z.infer<typeof reportSchema>
@@ -98,7 +104,7 @@ type ReportValues = z.infer<typeof reportSchema>
 const STEPS: StepDefinition[] = [
   { id: 'describe', label: 'Describe', hint: 'What is wrong, in your own words', icon: PenLine },
   { id: 'location', label: 'Location', hint: 'Where someone will find it', icon: MapPin },
-  { id: 'contact', label: 'Contact', hint: 'Optional — anonymous is fine', icon: User },
+  { id: 'contact', label: 'Contact', hint: 'Your email — we make the account', icon: User },
   { id: 'review', label: 'AI review', hint: 'See how the AI reads it', icon: BrainCircuit },
 ]
 
@@ -129,7 +135,7 @@ export default function ReportPage() {
       : 0,
   )
   const [furthest, setFurthest] = useState(step)
-  const [created, setCreated] = useState<Complaint | null>(null)
+  const [created, setCreated] = useState<ComplaintCreateResponse | null>(null)
   const [geoState, setGeoState] = useState<'idle' | 'locating' | 'ok' | 'denied' | 'unsupported'>(
     initial.draft.latitude != null ? 'ok' : 'idle',
   )
@@ -278,8 +284,29 @@ export default function ReportPage() {
 
   /* ----------------------------------------------------------------- submit */
 
-  const submit = () => {
+  const submit = async () => {
     if (create.isPending || created || !consent) return
+
+    // A restored draft can land straight on the review step, so the whole form is
+    // re-validated here rather than trusting the per-step gates. Email is
+    // required now (CONTRACT §4b) and a 422 from the API would be a worse way to
+    // learn that than a jump back to the field.
+    const valid = await form.trigger()
+    if (!valid) {
+      const errors = form.formState.errors
+      const target = errors.description ? 0 : errors.location_text || errors.area ? 1 : 2
+      setStep(target)
+      setFurthest((value) => Math.max(value, target))
+      toast.error('One thing is missing', {
+        description:
+          target === 2
+            ? 'We need a valid email address to create your account.'
+            : 'Please check the highlighted field.',
+      })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+
     const values = form.getValues()
     const payload: ComplaintCreate = {
       description: values.description.trim(),
@@ -289,7 +316,7 @@ export default function ReportPage() {
       longitude: draft.longitude,
       citizen_name: values.citizen_name?.trim() || null,
       citizen_phone: values.citizen_phone?.trim() || null,
-      citizen_email: values.citizen_email?.trim() || null,
+      citizen_email: values.citizen_email.trim(),
       image_url: null,
       category: draft.category,
       consent: true,
@@ -377,7 +404,7 @@ export default function ReportPage() {
       <PageHeader
         eyebrow={`Step ${step + 1} of ${STEPS.length}`}
         title="Report an issue"
-        description="Tell us what is wrong and where. No account is needed — you will get a tracking code at the end, and you will see exactly how the AI reads your report before you submit it."
+        description="Tell us what is wrong and where. You will not fill in a signup form — we create your account from your email so every report you file stays in one place — and you will see exactly how the AI reads your report before you submit it."
       />
 
       {restoredOnMount && !created ? (
@@ -398,7 +425,7 @@ export default function ReportPage() {
       <form
         onSubmit={(event) => {
           event.preventDefault()
-          if (step === STEPS.length - 1) submit()
+          if (step === STEPS.length - 1) void submit()
           else void goNext()
         }}
         noValidate
@@ -598,11 +625,11 @@ export default function ReportPage() {
               <div className="rounded-lg border border-dashed p-4">
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   <span className="font-medium text-foreground">
-                    Reporting anonymously is completely fine.
+                    You don&rsquo;t create an account — we make one for you.
                   </span>{' '}
-                  Every field on this step is optional and your report is treated exactly the same
-                  either way. Leave them blank and track the report with the code instead. If you do
-                  add details, they are stored with the complaint and never sent to the AI.
+                  Your email is the only thing we need for that: it becomes your sign-in, so every
+                  report you ever file shows up in one place. Name and phone stay optional, and
+                  none of these details are ever sent to the AI.
                 </p>
               </div>
 
@@ -664,12 +691,22 @@ export default function ReportPage() {
                       <FieldLabel htmlFor="citizen_email">
                         <Mail className="size-3.5" aria-hidden />
                         Email
+                        <span className="text-destructive" aria-hidden>
+                          *
+                        </span>
+                        <span className="sr-only">(required)</span>
                       </FieldLabel>
+                      <FieldDescription>
+                        Required — this is how you get an account to track your reports. We create
+                        it for you on submit and show you the password on the next screen; you
+                        never fill in a signup form.
+                      </FieldDescription>
                       <Input
                         {...field}
                         id="citizen_email"
                         type="email"
-                        placeholder="Optional"
+                        required
+                        placeholder="you@example.com"
                         autoComplete="email"
                         aria-invalid={fieldState.invalid}
                         className="h-10"
@@ -766,12 +803,17 @@ export default function ReportPage() {
                         Contact
                       </dt>
                       <dd className="mt-1 wrap-break-word">
-                        {name || phone || email ? (
-                          [name, phone, email].filter(Boolean).join(' · ')
-                        ) : (
-                          <span className="text-muted-foreground">Anonymous</span>
-                        )}
+                        {[name, phone, email].filter(Boolean).join(' · ')}
                       </dd>
+                      {email ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Your account is created for this address — no signup form.
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-xs text-warning">
+                          An email is needed. Go back to the Contact step to add one.
+                        </p>
+                      )}
                     </div>
                   </div>
                   {overrideCategory ? (
@@ -861,7 +903,7 @@ export default function ReportPage() {
             error={create.error}
             title="Your report was not filed"
             description="Nothing was lost — your text is still here. Try submitting again."
-            onRetry={submit}
+            onRetry={() => void submit()}
             retryLabel="Submit again"
           />
         ) : null}

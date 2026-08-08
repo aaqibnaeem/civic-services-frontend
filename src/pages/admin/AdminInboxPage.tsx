@@ -21,6 +21,7 @@ import {
   useDebouncedValue,
   useDepartments,
   useIsMobile,
+  useStaff,
   useUpdateComplaint,
 } from '@/hooks'
 import type { Complaint, Status } from '@/lib/api/types'
@@ -74,6 +75,9 @@ export default function AdminInboxPage() {
 
   const complaints = useComplaints(filters)
   const departments = useDepartments()
+  // Admin-only endpoint: a `staff` session gets a 403 and the assignee facet
+  // simply does not appear. "Assigned to me" needs no directory and stays.
+  const staff = useStaff()
   const areasQuery = useAnalyticsAreas()
   const update = useUpdateComplaint()
   const [pendingId, setPendingId] = useState<string | null>(null)
@@ -152,6 +156,7 @@ export default function AdminInboxPage() {
         }}
         departments={departments.data ?? []}
         areas={areas}
+        staff={staff.data ?? []}
       />
 
       {/* --------------------------------------------------------- Results */}

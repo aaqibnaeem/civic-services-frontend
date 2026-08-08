@@ -59,8 +59,13 @@ const HIGHLIGHTS = [
 export default function AdminLoginPage() {
   const [searchParams] = useSearchParams()
   const token = useAuthStore((s) => s.token)
+  const user = useAuthStore((s) => s.user)
   const next = searchParams.get('next') || '/admin'
-  const login = useLogin(next)
+  // A citizen account cannot enter the console, so send it home rather than
+  // through the admin guard just to be bounced back out again.
+  const login = useLogin((account) =>
+    account.role === 'citizen' ? '/my-reports' : next,
+  )
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -69,7 +74,7 @@ export default function AdminLoginPage() {
   })
 
   // Already signed in — skip the form.
-  if (token) return <Navigate to={next} replace />
+  if (token) return <Navigate to={user?.role === 'citizen' ? '/my-reports' : next} replace />
 
   const onSubmit = (values: LoginValues) => login.mutate(values)
 
@@ -215,11 +220,18 @@ export default function AdminLoginPage() {
           ))}
         </ul>
 
-        <p className="text-center text-sm text-muted-foreground">
-          <Link to="/" className="underline underline-offset-4 hover:text-foreground">
-            Back to the public site
-          </Link>
-        </p>
+        <div className="space-y-1.5 text-center text-sm text-muted-foreground">
+          <p>
+            <Link to="/signin" className="underline underline-offset-4 hover:text-foreground">
+              Citizen? Sign in to your reports here
+            </Link>
+          </p>
+          <p>
+            <Link to="/" className="underline underline-offset-4 hover:text-foreground">
+              Back to the public site
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   )

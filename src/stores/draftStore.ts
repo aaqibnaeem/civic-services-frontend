@@ -110,7 +110,10 @@ export const useDraftStore = create<DraftState>()(
           longitude: draft.longitude,
           citizen_name: blankToNull(draft.citizen_name),
           citizen_phone: blankToNull(draft.citizen_phone),
-          citizen_email: blankToNull(draft.citizen_email),
+          // Required since CONTRACT §4b — the API creates the citizen's account
+          // from it, so it is never trimmed away to null. The form refuses to
+          // submit while it is empty.
+          citizen_email: draft.citizen_email.trim(),
           image_url: blankToNull(draft.image_url),
           category: draft.category,
           consent: draft.consent,

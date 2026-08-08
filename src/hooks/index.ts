@@ -7,17 +7,21 @@
 export {
   useComplaints,
   useComplaint,
+  useMyComplaints,
   useTrackComplaint,
   useDuplicates,
   usePollUntilAnalyzed,
   useCreateComplaint,
   useUpdateComplaint,
+  useAutoAssignComplaint,
   useReanalyzeComplaint,
   useDeleteComplaint,
   type PollUntilAnalyzedResult,
 } from './useComplaints'
 
 export { useDepartments, useDepartmentMap } from './useDepartments'
+
+export { useStaff, useDepartmentStaff, sortByWorkload } from './useStaff'
 
 export {
   useAnalyzePreview,

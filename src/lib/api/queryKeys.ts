@@ -12,7 +12,7 @@
  * NEVER inline a literal array in a component. Add a factory here instead.
  */
 
-import type { AnalyticsFilters, ComplaintFilters } from './types'
+import type { AnalyticsFilters, ComplaintFilters, MyComplaintFilters } from './types'
 
 /** Strips undefined/null/empty so `{page:1}` and `{page:1,q:undefined}` share a key. */
 function stable(input?: object): Record<string, unknown> {
@@ -52,11 +52,24 @@ export const qk = {
       ['complaints', 'track', referenceCode.trim().toUpperCase()] as const,
     /** Batch tracking used by /my-reports (one query per stored reference code). */
     tracked: () => ['complaints', 'track'] as const,
+    /** `GET /complaints/mine` — the signed-in citizen's own reports. */
+    mineAll: () => ['complaints', 'mine'] as const,
+    mine: (filters?: MyComplaintFilters) =>
+      ['complaints', 'mine', stable(filters)] as const,
   },
 
   departments: {
     all: () => ['departments'] as const,
     list: () => ['departments', 'list'] as const,
+    /** `GET /departments/{id}/staff` — staff and workload for one department. */
+    staff: (departmentId: string) => ['departments', 'staff', departmentId] as const,
+  },
+
+  staff: {
+    all: () => ['staff'] as const,
+    /** `GET /staff` — admin-only directory with workload. */
+    list: (params?: { department_id?: string }) =>
+      ['staff', 'list', stable(params)] as const,
   },
 
   analytics: {

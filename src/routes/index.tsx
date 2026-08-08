@@ -38,6 +38,8 @@ const routes: RouteObject[] = [
         lazy: lazyPage(() => import('@/pages/TrackDetailPage')),
       },
       { path: 'my-reports', lazy: lazyPage(() => import('@/pages/MyReportsPage')) },
+      // Citizen sign-in. Staff sign in at /admin/login, outside this shell.
+      { path: 'signin', lazy: lazyPage(() => import('@/pages/SignInPage')) },
     ],
   },
 

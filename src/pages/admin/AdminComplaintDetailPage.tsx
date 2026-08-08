@@ -16,6 +16,7 @@ import {
   MapPin,
   Phone,
   User,
+  UserRound,
 } from 'lucide-react'
 
 import { CategoryBadge } from '@/components/CategoryBadge'
@@ -32,11 +33,13 @@ import {
   useReanalyzeComplaint,
 } from '@/hooks'
 import { formatHours } from '@/lib/domain'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 
 import { AiAnalysisPanel } from '@/components/admin/AiAnalysisPanel'
+import { AssignmentPanel } from '@/components/admin/AssignmentPanel'
 import { ComplaintActionPanel } from '@/components/admin/ComplaintActionPanel'
 import { DuplicatesPanel } from '@/components/admin/DuplicatesPanel'
 import { StatusTimeline } from '@/components/admin/StatusTimeline'
@@ -132,6 +135,21 @@ export default function AdminComplaintDetailPage() {
             <StatusBadge status={data.status} withTooltip />
             <PriorityBadge priority={data.priority} withTooltip />
             <CategoryBadge category={data.category} withTooltip />
+            {/* Ownership belongs beside the status, not only in the panel below —
+                on a phone that panel is several screens down. */}
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs',
+                data.assignee
+                  ? 'bg-muted/60 text-muted-foreground'
+                  : 'border-dashed border-muted-foreground/40 text-muted-foreground',
+              )}
+            >
+              <UserRound className="size-3.5" aria-hidden />
+              {data.assignee
+                ? (data.assignee.full_name || data.assignee.email)
+                : 'Unassigned'}
+            </span>
           </div>
         }
         actions={
@@ -188,7 +206,7 @@ export default function AdminComplaintDetailPage() {
                 </DetailRow>
 
                 <DetailRow icon={User} label="Citizen">
-                  <p>{data.citizen_name ?? 'Reported anonymously'}</p>
+                  <p>{data.citizen_name ?? 'No name given'}</p>
                   {data.citizen_phone ? (
                     <p className="flex items-center gap-1.5 text-muted-foreground">
                       <Phone className="size-3.5" aria-hidden />
@@ -213,7 +231,8 @@ export default function AdminComplaintDetailPage() {
                   ) : null}
                   {!data.citizen_phone && !data.citizen_email ? (
                     <p className="text-xs text-muted-foreground">
-                      No contact details — updates are only visible via the tracking code.
+                      No contact details — this report predates citizen accounts, so updates are
+                      only visible via the tracking code.
                     </p>
                   ) : null}
                 </DetailRow>
@@ -269,6 +288,8 @@ export default function AdminComplaintDetailPage() {
 
         {/* ----------------------------------------------------- Right column */}
         <div className="space-y-6">
+          <AssignmentPanel complaint={data} />
+
           <ComplaintActionPanel complaint={data} departments={departments.data ?? []} />
 
           <Card>

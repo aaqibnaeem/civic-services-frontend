@@ -1,17 +1,6 @@
-import { Link } from 'react-router-dom'
-import {
-  ArrowRight,
-  CircleDashed,
-  MapPin,
-  RefreshCw,
-  SearchX,
-  Trash2,
-} from 'lucide-react'
+import { RefreshCw, SearchX, Trash2 } from 'lucide-react'
 
-import { CategoryBadge } from '@/components/CategoryBadge'
-import { PriorityBadge } from '@/components/PriorityBadge'
 import { ReferenceCode } from '@/components/ReferenceCode'
-import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -19,19 +8,22 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useTrackComplaint } from '@/hooks'
 import type { TrackedRef } from '@/stores/trackedStore'
 
-import { relativeTime, shortDate } from './utils'
+import { ComplaintSummaryCard } from './ComplaintSummaryCard'
 
 export interface TrackedReportCardProps {
   entry: TrackedRef
   onRemove: (referenceCode: string) => void
+  /** Explains where this entry came from when it sits beside account reports. */
+  footnote?: React.ReactNode
 }
 
 /**
- * One row on /my-reports. Each card fetches its own live status by reference
- * code, so the list is never stale even though the codes themselves live in
- * localStorage.
+ * One locally-remembered report on /my-reports. Each card fetches its own live
+ * status by reference code, so the list is never stale even though the codes
+ * themselves live in localStorage — which is what keeps this page working for
+ * someone who has never signed in.
  */
-export function TrackedReportCard({ entry, onRemove }: TrackedReportCardProps) {
+export function TrackedReportCard({ entry, onRemove, footnote }: TrackedReportCardProps) {
   const query = useTrackComplaint(entry.reference_code)
   const complaint = query.data
 
@@ -97,47 +89,11 @@ export function TrackedReportCard({ entry, onRemove }: TrackedReportCardProps) {
   if (!complaint) return null
 
   return (
-    <Card className="transition-shadow hover:shadow-civic-lg">
-      <CardContent className="space-y-3 p-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <ReferenceCode code={complaint.reference_code} size="sm" copyable />
-          <StatusBadge status={complaint.status} size="sm" withTooltip />
-          <CategoryBadge category={complaint.category} size="sm" short withTooltip />
-          <PriorityBadge priority={complaint.priority} size="sm" />
-          <span className="ml-auto flex items-center gap-1">
-            {complaint.ai_status === 'pending' ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-info/30 bg-info/10 px-2 py-0.5 text-[0.6875rem] text-info">
-                <CircleDashed className="size-3 animate-spin" aria-hidden />
-                AI analysing
-              </span>
-            ) : null}
-            {removeButton}
-          </span>
-        </div>
-
-        <div className="space-y-1">
-          <h3 className="text-sm leading-snug font-medium">
-            {entry.nickname || complaint.title}
-          </h3>
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <MapPin className="size-3.5 shrink-0" aria-hidden />
-            <span className="min-w-0 truncate">{complaint.location_text}</span>
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
-          <p className="text-xs text-muted-foreground">
-            Reported {shortDate(complaint.created_at)}
-            <span className="opacity-70"> · {relativeTime(complaint.created_at)}</span>
-          </p>
-          <Button asChild variant="ghost" size="sm">
-            <Link to={`/track/${complaint.reference_code}`}>
-              View status
-              <ArrowRight className="size-3.5" aria-hidden />
-            </Link>
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+    <ComplaintSummaryCard
+      complaint={complaint}
+      title={entry.nickname}
+      action={removeButton}
+      footnote={footnote}
+    />
   )
 }
